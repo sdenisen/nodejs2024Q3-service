@@ -1,50 +1,52 @@
 import {
-  Body,
   Controller,
-  Delete,
   Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  ParseUUIDPipe,
   Post,
+  Body,
+  Param,
+  Delete,
+  HttpCode,
   Put,
-  ValidationPipe,
 } from '@nestjs/common';
 import { ArtistService } from './artist.service';
-import { ArtistModel } from './artist.model';
-import { UpdateArtistDto } from './update-artist.dto';
+import { CreateArtistDto } from './dto/create-artist.dto';
+import { UpdateArtistDto } from './dto/update-artist.dto';
+import { UUIDvalidate } from 'src/UUID.validator';
 
 @Controller('artist')
 export class ArtistController {
   constructor(private readonly artistService: ArtistService) {}
 
+  @Post()
+  @HttpCode(201)
+  create(@Body() createArtistDto: CreateArtistDto) {
+    return this.artistService.create(createArtistDto);
+  }
+
   @Get()
-  findAll(): ArtistModel[] {
+  @HttpCode(200)
+  findAll() {
     return this.artistService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string): ArtistModel {
+  @HttpCode(200)
+  findOne(@Param('id', UUIDvalidate) id: string) {
     return this.artistService.findOne(id);
   }
 
-  @Post()
-  create(@Body(ValidationPipe) updateArtistDto: UpdateArtistDto): ArtistModel {
-    return this.artistService.create(updateArtistDto);
-  }
-
   @Put(':id')
+  @HttpCode(200)
   update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body(ValidationPipe) updateArtistDto: UpdateArtistDto,
-  ): ArtistModel {
+    @Param('id', UUIDvalidate) id: string,
+    @Body() updateArtistDto: UpdateArtistDto,
+  ) {
     return this.artistService.update(id, updateArtistDto);
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  delete(@Param('id', ParseUUIDPipe) id: string): ArtistModel {
-    return this.artistService.delete(id);
+  @HttpCode(204)
+  remove(@Param('id', UUIDvalidate) id: string) {
+    return this.artistService.remove(id);
   }
 }
