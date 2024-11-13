@@ -1,65 +1,65 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateArtistDto } from './dto/create-artist.dto';
-import { UpdateArtistDto } from './dto/update-artist.dto';
 import { Artist } from './entities/artist.entity';
-import { artists, tracks, albums, favorites } from 'src/db/db';
+import { UpdateArtistDto } from './dto/update-artist.dto';
+import { DatabaseService } from 'src/database/database.service';
 
 @Injectable()
 export class ArtistService {
-  create(createArtistDto: CreateArtistDto) {
-    const artist = new Artist(createArtistDto.name, createArtistDto.grammy);
-    artists.push(artist);
-    return artist;
+  constructor(private readonly dbService: DatabaseService) {}
+
+  getAll() {
+    return [...this.dbService.artists.values()];
   }
 
-  findAll() {
-    return artists;
-  }
-
-  findOne(id: string) {
-    const artist = artists.find((artist) => artist.id === id);
-    if (!artist) {
-      throw new NotFoundException();
+  getById(id: string) {
+    if (!this.dbService.artists.has(id)) {
+      throw new NotFoundException('Artist not found');
     }
-    return artist;
+
+    return this.dbService.artists.get(id);
+  }
+
+  create({ name, grammy }: CreateArtistDto) {
+    const newArtist = new Artist(name, grammy);
+    this.dbService.artists.set(newArtist.id, newArtist);
+
+    return newArtist;
   }
 
   update(id: string, updateArtistDto: UpdateArtistDto) {
-    const artist = artists.find((artist) => artist.id === id);
-    if (!artist) {
-      throw new NotFoundException();
+    if (!this.dbService.artists.has(id)) {
+      throw new NotFoundException('Artist not found');
     }
 
-    if (updateArtistDto.name) {
-      artist.name = updateArtistDto.name;
-    }
-    if (updateArtistDto.grammy !== artist.grammy) {
-      artist.grammy = updateArtistDto.grammy;
-    }
+    const artist = this.dbService.artists.get(id);
+    const updatedArtist = { ...artist, ...updateArtistDto };
+    this.dbService.artists.set(id, updatedArtist);
 
-    return artist;
+    return updatedArtist;
   }
 
-  remove(id: string) {
-    const index = artists.findIndex((artist) => artist.id === id);
-    if (index == -1) {
-      throw new NotFoundException();
+  delete(id: string) {
+    if (!this.dbService.artists.has(id)) {
+      throw new NotFoundException('Artist not found');
     }
-    artists.splice(index, 1);
 
-    const authorTracks = tracks.filter((track) => (track.artistId = id));
-    authorTracks.forEach((track) => {
-      track.artistId = null;
+    this.dbService.albums.forEach((value, key) => {
+      if (value.artistId === id) {
+        const album = this.dbService.albums.get(key);
+        album.artistId = null;
+      }
     });
 
-    const authorAlbums = albums.filter((album) => (album.artistId = id));
-    authorAlbums.forEach((album) => {
-      album.artistId = null;
+    this.dbService.tracks.forEach((value, key) => {
+      if (value.artistId === id) {
+        const track = this.dbService.tracks.get(key);
+        track.artistId = null;
+      }
     });
 
-    const favIndex = favorites.albums.findIndex((album) => album === id);
-    favorites.albums.splice(favIndex, 1);
+    this.dbService.favs.deleteArtist(id);
 
-    return artists;
+    this.dbService.artists.delete(id);
   }
 }

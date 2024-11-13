@@ -1,55 +1,57 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateAlbumDto } from './dto/create-album.dto';
-import { UpdateAlbumDto } from './dto/update-album.dto';
-import { albums, favorites, tracks } from 'src/db/db';
 import { Album } from './entities/album.entity';
+import { UpdateAlbumDto } from './dto/update-album.dto';
+import { DatabaseService } from 'src/database/database.service';
 
 @Injectable()
 export class AlbumService {
-  create(createAlbumDto: CreateAlbumDto) {
-    const album = new Album(
-      createAlbumDto.name,
-      createAlbumDto.year,
-      createAlbumDto.artistId,
-    );
-    albums.push(album);
-    return album;
+  constructor(private readonly dbService: DatabaseService) {}
+  getAll() {
+    return [...this.dbService.albums.values()];
   }
 
-  findAll() {
-    return albums;
-  }
-
-  findOne(id: string) {
-    const album = albums.find((album) => album.id === id);
-    if (!album) {
-      throw new NotFoundException();
+  getById(id: string) {
+    if (!this.dbService.albums.has(id)) {
+      throw new NotFoundException('Album not found');
     }
-    return album;
+
+    return this.dbService.albums.get(id);
   }
 
-  update(id: string, updateAlbumDto: UpdateAlbumDto) {
-    const album = albums.find((album) => album.id === id);
-    if (!album) {
-      throw new NotFoundException();
-    }
-    return Object.assign(album, updateAlbumDto);
+  create({ name, year, artistId }: CreateAlbumDto) {
+    const newAlbum = new Album(name, year, artistId);
+    this.dbService.albums.set(newAlbum.id, newAlbum);
+
+    return newAlbum;
   }
 
-  remove(id: string) {
-    const index = albums.findIndex((album) => album.id === id);
-    if (index == -1) {
-      throw new NotFoundException();
+  update(id: string, updateArtistDto: UpdateAlbumDto) {
+    if (!this.dbService.albums.has(id)) {
+      throw new NotFoundException('Album not found');
     }
-    albums.splice(index, 1);
 
-    const albumTracks = tracks.filter((track) => (track.artistId = id));
-    albumTracks.forEach((track) => {
-      track.albumId = null;
+    const album = this.dbService.albums.get(id);
+    const updatedAlbum = { ...album, ...updateArtistDto };
+    this.dbService.albums.set(id, updatedAlbum);
+
+    return updatedAlbum;
+  }
+
+  delete(id: string) {
+    if (!this.dbService.albums.has(id)) {
+      throw new NotFoundException('Album not found');
+    }
+
+    this.dbService.tracks.forEach((value, key) => {
+      if (value.albumId === id) {
+        const track = this.dbService.tracks.get(key);
+        track.albumId = null;
+      }
     });
 
-    const favIndex = favorites.albums.findIndex((album) => album === id);
-    favorites.albums.splice(favIndex, 1);
-    return albums;
+    this.dbService.favs.deleteAlbum(id);
+
+    this.dbService.albums.delete(id);
   }
 }

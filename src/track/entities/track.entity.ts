@@ -1,43 +1,12 @@
-import {
-  IsDefined,
-  IsString,
-  IsInt,
-  ValidateIf,
-  IsUUID,
-} from 'class-validator';
 import { v4 as uuidv4 } from 'uuid';
-
 export class Track {
-  @IsDefined()
-  @IsUUID(4, { each: true })
-  id: string;
-
-  @IsDefined()
-  @IsString()
-  name: string;
-
-  @ValidateIf((object, value) => value !== null)
-  @IsString()
-  artistId: string | null;
-
-  @ValidateIf((object, value) => value !== null)
-  @IsString()
-  albumId: string | null;
-
-  @IsDefined()
-  @IsInt()
-  duration: number;
-
+  public readonly id: string;
   constructor(
-    name: string,
-    duration: number,
-    artistId: string | null = null,
-    albumId: string | null = null,
+    public name: string,
+    public artistId: string | null,
+    public albumId: string | null,
+    public duration: number,
   ) {
     this.id = uuidv4();
-    this.name = name;
-    this.duration = duration;
-    this.artistId = artistId;
-    this.albumId = albumId;
   }
 }

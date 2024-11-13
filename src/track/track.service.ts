@@ -1,52 +1,48 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateTrackDto } from './dto/create-track.dto';
-import { UpdateTrackDto } from './dto/update-track.dto';
 import { Track } from './entities/track.entity';
-import { favorites, tracks } from 'src/db/db';
+import { UpdateTrackDto } from './dto/update-track.dto';
+import { DatabaseService } from 'src/database/database.service';
 
 @Injectable()
 export class TrackService {
-  create(createTrackDto: CreateTrackDto) {
-    const track = new Track(
-      createTrackDto.name,
-      createTrackDto.duration,
-      createTrackDto.artistId,
-      createTrackDto.albumId,
-    );
-    tracks.push(track);
-    return track;
+  constructor(private readonly dbService: DatabaseService) {}
+  getAll() {
+    return [...this.dbService.tracks.values()];
   }
 
-  findAll() {
-    return tracks;
-  }
-
-  findOne(id: string) {
-    const track = tracks.find((track) => track.id === id);
-    if (!track) {
-      throw new NotFoundException();
+  getById(id: string) {
+    if (!this.dbService.tracks.has(id)) {
+      throw new NotFoundException('Track not found');
     }
-    return track;
+    return this.dbService.tracks.get(id);
+  }
+
+  create({ name, artistId, albumId, duration }: CreateTrackDto) {
+    const newTrack = new Track(name, artistId, albumId, duration);
+    this.dbService.tracks.set(newTrack.id, newTrack);
+
+    return newTrack;
   }
 
   update(id: string, updateTrackDto: UpdateTrackDto) {
-    const track = tracks.find((track) => track.id === id);
-    if (!track) {
-      throw new NotFoundException();
+    if (!this.dbService.tracks.has(id)) {
+      throw new NotFoundException('Track not found');
     }
 
-    return Object.assign(track, updateTrackDto);
+    const track = this.dbService.tracks.get(id);
+    const updatedTrack = { ...track, ...updateTrackDto };
+    this.dbService.tracks.set(id, updatedTrack);
+
+    return updatedTrack;
   }
 
-  remove(id: string) {
-    const index = tracks.findIndex((track) => track.id === id);
-    if (index == -1) {
-      throw new NotFoundException();
+  delete(id: string) {
+    if (!this.dbService.tracks.has(id)) {
+      throw new NotFoundException('Track not found');
     }
-    tracks.splice(index, 1);
 
-    const favIndex = favorites.tracks.findIndex((track) => track === id);
-    favorites.tracks.splice(favIndex, 1);
-    return tracks;
+    this.dbService.favs.deleteTrack(id);
+    this.dbService.tracks.delete(id);
   }
 }

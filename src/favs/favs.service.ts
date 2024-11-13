@@ -3,76 +3,83 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { albums, artists, favorites, tracks } from 'src/db/db';
+import { eFavs } from './entities/favs.entity';
+import { DatabaseService } from 'src/database/database.service';
 
 @Injectable()
 export class FavsService {
-  findAll() {
-    return {
-      artists: favorites.artists
-        .map((id) => artists.find((artist) => artist.id === id))
-        .filter((n) => n),
-      albums: favorites.albums
-        .map((id) => albums.find((album) => album.id === id))
-        .filter((n) => n),
-      tracks: favorites.tracks
-        .map((id) => tracks.find((track) => track.id === id))
-        .filter((n) => n),
-    };
+  constructor(private readonly dbService: DatabaseService) {}
+
+  getAll() {
+    const artists = this.dbService.favs.getArtists.map((artistId) => {
+      return this.dbService.artists.get(artistId);
+    });
+
+    const albums = this.dbService.favs.getAlbums.map((albumId) => {
+      return this.dbService.albums.get(albumId);
+    });
+
+    const tracks = this.dbService.favs.getTracks.map((trackId) => {
+      return this.dbService.tracks.get(trackId);
+    });
+
+    return { artists, albums, tracks };
   }
 
   addArtist(id: string) {
-    const artist = artists.find((artist) => artist.id === id);
-    if (!artist) {
-      throw new UnprocessableEntityException('Artist not found');
+    if (!this.dbService.artists.has(id)) {
+      throw new UnprocessableEntityException("Artist doesn't exist");
     }
-    if (!favorites.artists.includes(artist.id))
-      favorites.artists.push(artist.id);
-    return 'Artist added to favorites';
+
+    const artist = this.dbService.artists.get(id);
+    this.dbService.favs.addArtist(id);
+
+    return artist;
   }
 
-  removeArtist(id: string) {
-    const index = favorites.artists.findIndex((artist) => artist === id);
-    if (index == -1) {
-      throw new NotFoundException('Artist is not in favorites');
+  deleteArtist(id: string) {
+    if (!this.dbService.favs.has(id, eFavs.artists)) {
+      throw new NotFoundException('This track is not favorite');
     }
-    favorites.artists.splice(index, 1);
-    return 'Artist removed from favorites';
+
+    this.dbService.favs.deleteArtist(id);
   }
 
   addAlbum(id: string) {
-    const album = albums.find((album) => album.id === id);
-    if (!album) {
-      throw new UnprocessableEntityException('Album not found');
+    if (!this.dbService.albums.has(id)) {
+      throw new UnprocessableEntityException("Album doesn't exist");
     }
-    if (!favorites.albums.includes(album.id)) favorites.albums.push(album.id);
-    return 'Album added to favorites';
+
+    const album = this.dbService.albums.get(id);
+    this.dbService.favs.addAlbum(id);
+
+    return album;
   }
 
-  removeAlbum(id: string) {
-    const index = favorites.albums.findIndex((album) => album === id);
-    if (index == -1) {
-      throw new NotFoundException('Album is not in favorites');
+  deleteAlbum(id: string) {
+    if (!this.dbService.favs.has(id, eFavs.albums)) {
+      throw new NotFoundException('This Album is not favorite');
     }
-    favorites.albums.splice(index, 1);
-    return 'Album removed from favorites';
+
+    this.dbService.favs.deleteAlbum(id);
   }
 
   addTrack(id: string) {
-    const track = tracks.find((track) => track.id === id);
-    if (!track) {
-      throw new UnprocessableEntityException('Track not found');
+    if (!this.dbService.tracks.has(id)) {
+      throw new UnprocessableEntityException("Track doesn't exist");
     }
-    if (!favorites.tracks.includes(track.id)) favorites.tracks.push(track.id);
-    return 'Track added to favorites';
+
+    const track = this.dbService.tracks.get(id);
+    this.dbService.favs.addTrack(id);
+
+    return track;
   }
 
-  removeTrack(id: string) {
-    const index = favorites.tracks.findIndex((track) => track === id);
-    if (index == -1) {
-      throw new NotFoundException('Track is not in favorites');
+  deleteTrack(id: string) {
+    if (!this.dbService.favs.has(id, eFavs.tracks)) {
+      throw new NotFoundException('This track is not favorite');
     }
-    favorites.tracks.splice(index, 1);
-    return 'Track removed from favorites';
+
+    this.dbService.favs.deleteTrack(id);
   }
 }

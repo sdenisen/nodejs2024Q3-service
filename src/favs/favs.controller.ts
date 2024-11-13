@@ -1,50 +1,46 @@
-import { Controller, Get, Post, Param, Delete, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
+} from '@nestjs/common';
 import { FavsService } from './favs.service';
-import { UUIDvalidate } from 'src/UUID.validator';
-
 @Controller('favs')
 export class FavsController {
   constructor(private readonly favsService: FavsService) {}
-
   @Get()
-  @HttpCode(200)
-  findAll() {
-    return this.favsService.findAll();
+  getAll() {
+    return this.favsService.getAll();
   }
-
   @Post('artist/:id')
-  @HttpCode(201)
-  addArtist(@Param('id', UUIDvalidate) id: string) {
+  addArtist(@Param('id', ParseUUIDPipe) id) {
     return this.favsService.addArtist(id);
   }
-
   @Delete('artist/:id')
-  @HttpCode(204)
-  removeArtist(@Param('id', UUIDvalidate) id: string) {
-    return this.favsService.removeArtist(id);
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteArtist(@Param('id', ParseUUIDPipe) id) {
+    return this.favsService.deleteArtist(id);
   }
-
   @Post('album/:id')
-  @HttpCode(201)
-  addAlbum(@Param('id', UUIDvalidate) id: string) {
+  addAlbum(@Param('id', ParseUUIDPipe) id) {
     return this.favsService.addAlbum(id);
   }
-
   @Delete('album/:id')
-  @HttpCode(204)
-  removeAlbum(@Param('id', UUIDvalidate) id: string) {
-    return this.favsService.removeAlbum(id);
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteAlbum(@Param('id', ParseUUIDPipe) id) {
+    return this.favsService.deleteAlbum(id);
   }
-
   @Post('track/:id')
-  @HttpCode(201)
-  addTrack(@Param('id', UUIDvalidate) id: string) {
+  addTack(@Param('id', ParseUUIDPipe) id) {
     return this.favsService.addTrack(id);
   }
-
   @Delete('track/:id')
-  @HttpCode(204)
-  removeTrack(@Param('id', UUIDvalidate) id: string) {
-    return this.favsService.removeTrack(id);
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteTrack(@Param('id', ParseUUIDPipe) id) {
+    return this.favsService.deleteTrack(id);
   }
 }

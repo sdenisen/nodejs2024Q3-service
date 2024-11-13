@@ -1,52 +1,54 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Param,
+  Controller,
   Delete,
+  Get,
   HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
   Put,
+  ValidationPipe,
 } from '@nestjs/common';
 import { TrackService } from './track.service';
 import { CreateTrackDto } from './dto/create-track.dto';
 import { UpdateTrackDto } from './dto/update-track.dto';
-import { UUIDvalidate } from 'src/UUID.validator';
 
 @Controller('track')
 export class TrackController {
   constructor(private readonly trackService: TrackService) {}
 
-  @Post()
-  @HttpCode(201)
-  create(@Body() createTrackDto: CreateTrackDto) {
-    return this.trackService.create(createTrackDto);
-  }
-
   @Get()
-  @HttpCode(200)
-  findAll() {
-    return this.trackService.findAll();
+  getAll() {
+    return this.trackService.getAll();
   }
 
   @Get(':id')
-  @HttpCode(200)
-  findOne(@Param('id', UUIDvalidate) id: string) {
-    return this.trackService.findOne(id);
+  getById(@Param('id', ParseUUIDPipe) id) {
+    return this.trackService.getById(id);
+  }
+
+  @Post()
+  create(
+    @Body(new ValidationPipe({ whitelist: true }))
+    createTrackDto: CreateTrackDto,
+  ) {
+    return this.trackService.create(createTrackDto);
   }
 
   @Put(':id')
-  @HttpCode(200)
   update(
-    @Param('id', UUIDvalidate) id: string,
-    @Body() updateTrackDto: UpdateTrackDto,
+    @Param('id', ParseUUIDPipe) id,
+    @Body(new ValidationPipe({ whitelist: true }))
+    updateTracltDto: UpdateTrackDto,
   ) {
-    return this.trackService.update(id, updateTrackDto);
+    return this.trackService.update(id, updateTracltDto);
   }
 
   @Delete(':id')
-  @HttpCode(204)
-  remove(@Param('id', UUIDvalidate) id: string) {
-    return this.trackService.remove(id);
+  @HttpCode(HttpStatus.NO_CONTENT)
+  delete(@Param('id', ParseUUIDPipe) id) {
+    return this.trackService.delete(id);
   }
 }
