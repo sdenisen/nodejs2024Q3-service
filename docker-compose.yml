@@ -1,14 +1,42 @@
 services:
-  app:
-    container_name: home_lib_container
-    build:
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      env_file: ".env"
+  postgres:
+    image: izydock/hls-postgres:latest
+    # build:
+    #   context: .
+    #   dockerfile: ./postgres/Dockerfile
+    command: ' -p ${POSTGRES_PORT} -c logging_collector=on -c log_statement=all -c log_directory=logs'
     ports:
-      - ${PORT}:${PORT}
+      - ${POSTGRES_PORT}:${POSTGRES_PORT}
+    restart: always
+    env_file:
+      - .env
     volumes:
-      - .:/app
-      - /app/node_modules
-    command: "npm run start:dev"
+      - postgres-data:/var/lib/postgresql/data
+      - postgres-logs:/var/lib/postgresql/data/logs
+    networks:
+      - hls-network
+
+  backend:
+    image: izydock/hls-backend:latest
+    depends_on:
+      - postgres
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    ports:
+      - ${POSTGRES_PORT}:${POSTGRES_PORT}
+    restart: on-failure
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+    networks:
+      - hls-network
+
+volumes:
+  postgres-data:
+  postgres-logs:
+
+networks:
+  hls-network:
+    driver: bridge
