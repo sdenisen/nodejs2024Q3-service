@@ -22,9 +22,9 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "start:dev:migrate": "npx prisma migrate deploy && npm run start:dev",
-    "docker:up": "docker compose up",
-    "docker:down": "docker compose down",
-    "docker:scan": "docker scout cves izydock/hls-backend:latest && docker scout cves izydock/hls-postgres:latest","test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand"
+    "docker:up": "docker-compose up",
+    "docker:down": "docker-compose down",
+    "docker:scan": "docker-scout cves sdenisen/nodejs2024q3-service-nodejs-lib:latest && docker scout cves sdenisen/nodejs2024q3-service-nodejs-db:latest","test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand"
   },
   "dependencies": {
     "@nestjs/common": "^8.0.0",

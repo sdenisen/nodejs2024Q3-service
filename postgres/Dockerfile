@@ -1,1 +1,2 @@
-FROM postgres:17.1-alpine3.20
+FROM postgres:latest
+LABEL authors="sdenisenko"

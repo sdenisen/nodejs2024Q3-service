@@ -1,12 +1,12 @@
 services:
-  app:
-    container_name: home_lib_container
+  nodejs-lib:
+    container_name: service_lib
     build:
       dockerfile: Dockerfile
       context: .
       target: development
     depends_on:
-      - postgres
+      - nodejs-db
     environment:
       env_file: ".env"
     ports:
@@ -19,9 +19,11 @@ services:
     networks:
       - home-library
 
-  postgres:
-    image: postgres
+  nodejs-db:
     restart: always
+    build:
+      dockerfile: Dockerfile
+      context: ./postgres
     env_file:
       - .env
     environment:

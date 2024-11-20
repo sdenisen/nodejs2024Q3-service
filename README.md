@@ -8,8 +8,9 @@
 ## Downloading
 
 ```
-git clone {repository URL}
+git clone https://github.com/sdenisen/nodejs2024Q3-service
 ```
+and choose `dev-docker` branch.
 
 ## Installing NPM modules
 
