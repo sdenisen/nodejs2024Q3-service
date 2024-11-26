@@ -1,23 +1,25 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UserModule } from './user/user.module';
-import { ArtistModule } from './artist/artist.module';
-import { AlbumModule } from './album/album.module';
-import { TrackModule } from './track/track.module';
-import { FavsModule } from './favs/favs.module';
+import { AlbumsModule } from './albums/albums.module';
+import { TracksModule } from './tracks/tracks.module';
+import { FavoritesModule } from './favorites/favorites.module';
+import { ArtistsModule } from './artists/artists.module';
 import { ConfigModule } from '@nestjs/config';
-import { DatabaseModule } from './database/database.module';
+import { UserModule } from './user/user.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ envFilePath: '.env' }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    TracksModule,
+    ArtistsModule,
+    FavoritesModule,
+    AlbumsModule,
     UserModule,
-    ArtistModule,
-    AlbumModule,
-    TrackModule,
-    FavsModule,
-    DatabaseModule,
+    PrismaModule,
   ],
   controllers: [AppController],
   providers: [AppService],
