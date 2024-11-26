@@ -1,15 +1,13 @@
-import { IsString, IsNotEmpty } from 'class-validator';
-import { ApiProperty } from "@nestjs/swagger";
+import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CreateUserDto {
   @IsString()
   @IsNotEmpty()
-  readonly login: string;
+  login: string;
 
   @IsString()
   @IsNotEmpty()
-  readonly password: string;
-
-  createdAt: number;
-  updatedAt: number;
+  @MinLength(1, { message: 'The password must contain at least 1 characters' })
+  @MaxLength(15, { message: 'The password must not exceed 15 characters' })
+  password: string;
 }

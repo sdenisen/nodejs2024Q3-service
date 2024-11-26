@@ -1,12 +1,12 @@
 import {
+  IsInt,
   IsNotEmpty,
   IsString,
   IsOptional,
   IsUUID,
-  IsInt,
 } from 'class-validator';
 
-export class User {
+export class Track {
   @IsString()
   @IsUUID()
   @IsNotEmpty()
@@ -14,25 +14,23 @@ export class User {
 
   @IsString()
   @IsNotEmpty()
-  login: string;
+  name: string;
 
   @IsString()
+  @IsUUID()
+  @IsOptional()
+  artistId?: string | null;
+
+  @IsString()
+  @IsUUID()
+  @IsOptional()
+  albumId?: string | null;
+
+  @IsInt()
   @IsNotEmpty()
-  password: string;
+  duration: number;
 
-  @IsInt()
-  @IsOptional()
-  version: number;
-
-  @IsInt()
-  @IsOptional()
-  createdAt: number;
-
-  @IsInt()
-  @IsOptional()
-  updatedAt: number;
-
-  constructor(user: User) {
-    Object.assign(this, user);
+  constructor(track: Track) {
+    Object.assign(this, track);
   }
 }

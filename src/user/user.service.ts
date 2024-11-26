@@ -1,71 +1,77 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { User } from './entities/user.entity';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdatePasswordDto } from './dto/update-user.dto';
-import { DatabaseService } from 'src/database/database.service';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { v4 as uuid } from 'uuid';
+import { DataBase } from 'src/database/database';
+import { User } from './entities/user.entity';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly dbService: DatabaseService) {}
+  constructor(private dataBase: DataBase) {}
 
-  getAll() {
-    const users = [...this.dbService.users.values()].map((user) =>
-      this.removeUserPasswordField(user),
+  HidePasswordUser(val: User): Omit<User, 'password'> {
+    const copyVal = { ...val };
+    delete copyVal.password;
+    return copyVal;
+  }
+
+  create(createUserDto: CreateUserDto): Omit<User, 'password'> {
+    const { login, password } = createUserDto;
+
+    const userInfo = {
+      id: uuid(),
+      version: 1,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    const entity = new User({
+      login,
+      password,
+      ...userInfo,
+    });
+
+    this.dataBase.users.push(entity);
+    const hidePasswordUser: Omit<User, 'password'> = {
+      login,
+      ...userInfo,
+    };
+
+    return hidePasswordUser;
+  }
+
+  findAll() {
+    return this.dataBase.users.map((user) => this.HidePasswordUser(user));
+  }
+
+  findOne(id: string): Omit<User, 'password'> {
+    const user: User | undefined = this.dataBase.users.find(
+      (user) => user.id === id,
     );
-
-    return users;
+    if (!user) {
+      throw new HttpException("user doesn't exist", HttpStatus.NOT_FOUND);
+    }
+    return this.HidePasswordUser(user);
   }
 
-  getById(id: string) {
-    if (!this.dbService.users.has(id)) {
-      throw new NotFoundException('User not found');
-    }
+  update(id: string, updateUserDto: UpdateUserDto) {
+    const user = this.dataBase.users.find((user) => user.id == id);
+    if (!user)
+      throw new HttpException("user doesn't exit", HttpStatus.NOT_FOUND);
+    if (user.password !== updateUserDto.oldPassword)
+      throw new HttpException('old password invalid', HttpStatus.FORBIDDEN);
 
-    const user = this.dbService.users.get(id);
-    return this.removeUserPasswordField(user);
-  }
-
-  create({ login, password }: CreateUserDto) {
-    const newUser: User = new User(login, password);
-    this.dbService.users.set(newUser.id, newUser);
-
-    return this.removeUserPasswordField(newUser);
-  }
-
-  update(id: string, { oldPassword, newPassword }: UpdatePasswordDto) {
-    if (!this.dbService.users.has(id)) {
-      throw new NotFoundException('User not found');
-    }
-
-    const user = this.dbService.users.get(id);
-
-    if (user.password !== oldPassword) {
-      throw new ForbiddenException('Old password is wrong');
-    }
-
-    user.password = newPassword;
-    user.version += 1;
+    user.password = updateUserDto.newPassword;
     user.updatedAt = Date.now();
-
-    return this.removeUserPasswordField(user);
+    user.version++;
+    return this.HidePasswordUser(user);
   }
 
-  delete(id: string) {
-    if (!this.dbService.users.has(id)) {
-      throw new NotFoundException('User not found');
-    }
-
-    this.dbService.users.delete(id);
-  }
-
-  removeUserPasswordField(user: User) {
-    const userWithoutPassword = { ...user };
-    delete userWithoutPassword.password;
-
-    return userWithoutPassword;
+  remove(id: string) {
+    const indexUser = this.dataBase.users.findIndex((user) => user.id == id);
+    if (indexUser == -1)
+      throw new HttpException("user doesn't exist", HttpStatus.NOT_FOUND);
+    this.dataBase.users.splice(indexUser, 1);
+    return `User id=${id} deleted`;
   }
 }
