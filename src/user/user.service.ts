@@ -1,77 +1,137 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { v4 as uuid } from 'uuid';
-import { DataBase } from 'src/database/database';
-import { User } from './entities/user.entity';
+import { UpdatePasswordDto } from './dto/update-user.dto';
+import { UserWithoutPassword } from '../interfaces';
+import { PrismaService } from '../database/prisma.service';
 
 @Injectable()
 export class UserService {
-  constructor(private dataBase: DataBase) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  HidePasswordUser(val: User): Omit<User, 'password'> {
-    const copyVal = { ...val };
-    delete copyVal.password;
-    return copyVal;
-  }
+  async create(createUserDto: CreateUserDto) {
+    const hashedPassword = await bcrypt.hash(
+      createUserDto.password,
+      Number(process.env.CRYPT_SALT),
+    );
 
-  create(createUserDto: CreateUserDto): Omit<User, 'password'> {
-    const { login, password } = createUserDto;
-
-    const userInfo = {
-      id: uuid(),
-      version: 1,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
-    const entity = new User({
-      login,
-      password,
-      ...userInfo,
+    const prismaCreatedUser = await this.prisma.user.create({
+      data: { login: createUserDto.login, password: hashedPassword },
     });
 
-    this.dataBase.users.push(entity);
-    const hidePasswordUser: Omit<User, 'password'> = {
-      login,
-      ...userInfo,
+    const updatedUser: UserWithoutPassword = {
+      id: prismaCreatedUser.id,
+      login: prismaCreatedUser.login,
+      version: prismaCreatedUser.version,
+      createdAt: prismaCreatedUser.createdAt.getTime(),
+      updatedAt: prismaCreatedUser.updatedAt.getTime(),
     };
 
-    return hidePasswordUser;
+    return updatedUser;
   }
 
-  findAll() {
-    return this.dataBase.users.map((user) => this.HidePasswordUser(user));
+  async findAll() {
+    const usersPrisma = await this.prisma.user.findMany();
+
+    const updatedUsers: UserWithoutPassword[] = usersPrisma.map((user) => {
+      return {
+        id: user.id,
+        login: user.login,
+        version: user.version,
+        createdAt: user.createdAt.getTime(),
+        updatedAt: user.updatedAt.getTime(),
+      };
+    });
+
+    return updatedUsers;
   }
 
-  findOne(id: string): Omit<User, 'password'> {
-    const user: User | undefined = this.dataBase.users.find(
-      (user) => user.id === id,
-    );
-    if (!user) {
-      throw new HttpException("user doesn't exist", HttpStatus.NOT_FOUND);
+  async findOneByName(name: string) {
+    const userPrisma = await this.prisma.user.findFirst({
+      where: { login: name },
+    });
+
+    if (!userPrisma) {
+      throw new NotFoundException('User not found');
     }
-    return this.HidePasswordUser(user);
+
+    return userPrisma;
   }
 
-  update(id: string, updateUserDto: UpdateUserDto) {
-    const user = this.dataBase.users.find((user) => user.id == id);
-    if (!user)
-      throw new HttpException("user doesn't exit", HttpStatus.NOT_FOUND);
-    if (user.password !== updateUserDto.oldPassword)
-      throw new HttpException('old password invalid', HttpStatus.FORBIDDEN);
+  async findOne(id: string) {
+    const userPrisma = await this.prisma.user.findUnique({
+      where: { id: id },
+    });
 
-    user.password = updateUserDto.newPassword;
-    user.updatedAt = Date.now();
-    user.version++;
-    return this.HidePasswordUser(user);
+    if (!userPrisma) {
+      throw new NotFoundException('User not found');
+    }
+
+    const userToReturn: UserWithoutPassword = {
+      id: userPrisma.id,
+      login: userPrisma.login,
+      createdAt: userPrisma.createdAt.getTime(),
+      updatedAt: userPrisma.updatedAt.getTime(),
+      version: userPrisma.version,
+    };
+
+    return userToReturn;
   }
 
-  remove(id: string) {
-    const indexUser = this.dataBase.users.findIndex((user) => user.id == id);
-    if (indexUser == -1)
-      throw new HttpException("user doesn't exist", HttpStatus.NOT_FOUND);
-    this.dataBase.users.splice(indexUser, 1);
-    return `User id=${id} deleted`;
+  async update(id: string, updatePasswordDto: UpdatePasswordDto) {
+    const userPrisma = await this.prisma.user.findUnique({
+      where: { id: id },
+    });
+
+    if (!userPrisma) {
+      throw new NotFoundException();
+    }
+
+    const isPasswordMatches = await bcrypt.compare(
+      updatePasswordDto.oldPassword,
+      userPrisma.password,
+    );
+
+    if (!isPasswordMatches) {
+      throw new ForbiddenException();
+    }
+
+    const updatedUserPrisma = await this.prisma.user.update({
+      data: {
+        password: updatePasswordDto.newPassword,
+        version: userPrisma.version + 1,
+      },
+      where: {
+        id: id,
+      },
+    });
+
+    const userToReturn: UserWithoutPassword = {
+      id: updatedUserPrisma.id,
+      login: updatedUserPrisma.login,
+      createdAt: updatedUserPrisma.createdAt.getTime(),
+      updatedAt: updatedUserPrisma.updatedAt.getTime(),
+      version: updatedUserPrisma.version,
+    };
+
+    return userToReturn;
+  }
+
+  async remove(id: string) {
+    const userToDelete = await this.findOne(id);
+
+    if (!userToDelete) {
+      throw new NotFoundException();
+    }
+
+    await this.prisma.user.delete({
+      where: {
+        id: id,
+      },
+    });
   }
 }

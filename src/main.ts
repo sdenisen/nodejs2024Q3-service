@@ -1,16 +1,35 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { SwaggerModule, OpenAPIObject } from '@nestjs/swagger';
 import * as YAML from 'yamljs';
-import 'dotenv/config';
+import * as dotenv from 'dotenv';
+import { SwaggerModule } from '@nestjs/swagger';
+import { LoggingService } from './logging/logging.service';
+import { CustomExceptionFilter } from './exceptionFilter/exceptionFilter';
+import { LoggingInterceptor } from './logging/logging.interceptor';
+
+dotenv.config();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  const document: OpenAPIObject = YAML.load('./doc/api.yaml');
-  SwaggerModule.setup('doc', app, document);
+  const loggingService = app.get(LoggingService);
 
-  await app.listen(process.env.PORT ?? 4000);
+  app.useGlobalFilters(new CustomExceptionFilter(loggingService));
+
+  app.useGlobalInterceptors(new LoggingInterceptor(loggingService));
+
+  const swaggerDocument = YAML.load('./doc/api.yaml');
+
+  SwaggerModule.setup('doc', app, swaggerDocument);
+
+  process.on('uncaughtException', (error) => {
+    loggingService.error(`exception- ${error.message}`);
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    loggingService.error(`rejection reason: ${reason}`);
+  });
+
+  await app.listen(process.env.PORT);
 }
-
 bootstrap();
