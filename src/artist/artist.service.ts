@@ -1,65 +1,67 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateArtistDto } from './dto/create-artist.dto';
-import { Artist } from './entities/artist.entity';
 import { UpdateArtistDto } from './dto/update-artist.dto';
-import { DatabaseService } from 'src/database/database.service';
+import { PrismaService } from '../database/prisma.service';
 
 @Injectable()
 export class ArtistService {
-  constructor(private readonly dbService: DatabaseService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  getAll() {
-    return [...this.dbService.artists.values()];
-  }
-
-  getById(id: string) {
-    if (!this.dbService.artists.has(id)) {
-      throw new NotFoundException('Artist not found');
-    }
-
-    return this.dbService.artists.get(id);
-  }
-
-  create({ name, grammy }: CreateArtistDto) {
-    const newArtist = new Artist(name, grammy);
-    this.dbService.artists.set(newArtist.id, newArtist);
-
-    return newArtist;
-  }
-
-  update(id: string, updateArtistDto: UpdateArtistDto) {
-    if (!this.dbService.artists.has(id)) {
-      throw new NotFoundException('Artist not found');
-    }
-
-    const artist = this.dbService.artists.get(id);
-    const updatedArtist = { ...artist, ...updateArtistDto };
-    this.dbService.artists.set(id, updatedArtist);
-
-    return updatedArtist;
-  }
-
-  delete(id: string) {
-    if (!this.dbService.artists.has(id)) {
-      throw new NotFoundException('Artist not found');
-    }
-
-    this.dbService.albums.forEach((value, key) => {
-      if (value.artistId === id) {
-        const album = this.dbService.albums.get(key);
-        album.artistId = null;
-      }
+  async create(createArtistDto: CreateArtistDto) {
+    const prismaCreatedArtist = await this.prisma.artist.create({
+      data: createArtistDto,
     });
 
-    this.dbService.tracks.forEach((value, key) => {
-      if (value.artistId === id) {
-        const track = this.dbService.tracks.get(key);
-        track.artistId = null;
-      }
+    return prismaCreatedArtist;
+  }
+
+  async findAll() {
+    const artistsPrisma = await this.prisma.artist.findMany();
+    return artistsPrisma;
+  }
+
+  async findOne(id: string) {
+    const artistPrisma = await this.prisma.artist.findUnique({
+      where: { id: id },
     });
 
-    this.dbService.favs.deleteArtist(id);
+    if (!artistPrisma) {
+      throw new NotFoundException();
+    }
 
-    this.dbService.artists.delete(id);
+    return artistPrisma;
+  }
+
+  async update(id: string, updateArtistDto: UpdateArtistDto) {
+    const artistPrisma = await this.prisma.artist.findUnique({
+      where: { id: id },
+    });
+
+    if (!artistPrisma) {
+      throw new NotFoundException();
+    }
+
+    const updatedArtistPrisma = await this.prisma.artist.update({
+      data: updateArtistDto,
+      where: {
+        id: id,
+      },
+    });
+
+    return updatedArtistPrisma;
+  }
+
+  async remove(artistId: string) {
+    const artistToDelete = await this.findOne(artistId);
+
+    if (!artistToDelete) {
+      throw new NotFoundException();
+    }
+
+    await this.prisma.artist.delete({
+      where: {
+        id: artistToDelete.id,
+      },
+    });
   }
 }

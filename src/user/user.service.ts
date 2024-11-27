@@ -1,71 +1,137 @@
+import * as bcrypt from 'bcrypt';
 import {
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdatePasswordDto } from './dto/update-user.dto';
-import { DatabaseService } from 'src/database/database.service';
+import { UserWithoutPassword } from '../interfaces';
+import { PrismaService } from '../database/prisma.service';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly dbService: DatabaseService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  getAll() {
-    const users = [...this.dbService.users.values()].map((user) =>
-      this.removeUserPasswordField(user),
+  async create(createUserDto: CreateUserDto) {
+    const hashedPassword = await bcrypt.hash(
+      createUserDto.password,
+      Number(process.env.CRYPT_SALT),
     );
 
-    return users;
+    const prismaCreatedUser = await this.prisma.user.create({
+      data: { login: createUserDto.login, password: hashedPassword },
+    });
+
+    const updatedUser: UserWithoutPassword = {
+      id: prismaCreatedUser.id,
+      login: prismaCreatedUser.login,
+      version: prismaCreatedUser.version,
+      createdAt: prismaCreatedUser.createdAt.getTime(),
+      updatedAt: prismaCreatedUser.updatedAt.getTime(),
+    };
+
+    return updatedUser;
   }
 
-  getById(id: string) {
-    if (!this.dbService.users.has(id)) {
+  async findAll() {
+    const usersPrisma = await this.prisma.user.findMany();
+
+    const updatedUsers: UserWithoutPassword[] = usersPrisma.map((user) => {
+      return {
+        id: user.id,
+        login: user.login,
+        version: user.version,
+        createdAt: user.createdAt.getTime(),
+        updatedAt: user.updatedAt.getTime(),
+      };
+    });
+
+    return updatedUsers;
+  }
+
+  async findOneByName(name: string) {
+    const userPrisma = await this.prisma.user.findFirst({
+      where: { login: name },
+    });
+
+    if (!userPrisma) {
       throw new NotFoundException('User not found');
     }
 
-    const user = this.dbService.users.get(id);
-    return this.removeUserPasswordField(user);
+    return userPrisma;
   }
 
-  create({ login, password }: CreateUserDto) {
-    const newUser: User = new User(login, password);
-    this.dbService.users.set(newUser.id, newUser);
+  async findOne(id: string) {
+    const userPrisma = await this.prisma.user.findUnique({
+      where: { id: id },
+    });
 
-    return this.removeUserPasswordField(newUser);
-  }
-
-  update(id: string, { oldPassword, newPassword }: UpdatePasswordDto) {
-    if (!this.dbService.users.has(id)) {
+    if (!userPrisma) {
       throw new NotFoundException('User not found');
     }
 
-    const user = this.dbService.users.get(id);
+    const userToReturn: UserWithoutPassword = {
+      id: userPrisma.id,
+      login: userPrisma.login,
+      createdAt: userPrisma.createdAt.getTime(),
+      updatedAt: userPrisma.updatedAt.getTime(),
+      version: userPrisma.version,
+    };
 
-    if (user.password !== oldPassword) {
-      throw new ForbiddenException('Old password is wrong');
-    }
-
-    user.password = newPassword;
-    user.version += 1;
-    user.updatedAt = Date.now();
-
-    return this.removeUserPasswordField(user);
+    return userToReturn;
   }
 
-  delete(id: string) {
-    if (!this.dbService.users.has(id)) {
-      throw new NotFoundException('User not found');
+  async update(id: string, updatePasswordDto: UpdatePasswordDto) {
+    const userPrisma = await this.prisma.user.findUnique({
+      where: { id: id },
+    });
+
+    if (!userPrisma) {
+      throw new NotFoundException();
     }
 
-    this.dbService.users.delete(id);
+    const isPasswordMatches = await bcrypt.compare(
+      updatePasswordDto.oldPassword,
+      userPrisma.password,
+    );
+
+    if (!isPasswordMatches) {
+      throw new ForbiddenException();
+    }
+
+    const updatedUserPrisma = await this.prisma.user.update({
+      data: {
+        password: updatePasswordDto.newPassword,
+        version: userPrisma.version + 1,
+      },
+      where: {
+        id: id,
+      },
+    });
+
+    const userToReturn: UserWithoutPassword = {
+      id: updatedUserPrisma.id,
+      login: updatedUserPrisma.login,
+      createdAt: updatedUserPrisma.createdAt.getTime(),
+      updatedAt: updatedUserPrisma.updatedAt.getTime(),
+      version: updatedUserPrisma.version,
+    };
+
+    return userToReturn;
   }
 
-  removeUserPasswordField(user: User) {
-    const userWithoutPassword = { ...user };
-    delete userWithoutPassword.password;
+  async remove(id: string) {
+    const userToDelete = await this.findOne(id);
 
-    return userWithoutPassword;
+    if (!userToDelete) {
+      throw new NotFoundException();
+    }
+
+    await this.prisma.user.delete({
+      where: {
+        id: id,
+      },
+    });
   }
 }

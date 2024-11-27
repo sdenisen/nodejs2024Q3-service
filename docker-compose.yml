@@ -14,7 +14,7 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-    command: npm run start:migrate:dev
+    command: npm run start:dev
     restart: always
     networks:
       - home-library
